@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MotionDesigner</class>
+ <widget class="QMainWindow" name="MotionDesigner">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout_5">
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <widget class="QTableWidget" name="paramTable">
+       <attribute name="horizontalHeaderDefaultSectionSize">
+        <number>100</number>
+       </attribute>
+       <attribute name="horizontalHeaderStretchLastSection">
+        <bool>true</bool>
+       </attribute>
+       <column>
+        <property name="text">
+         <string>Id</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>名称</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>值</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>控制</string>
+        </property>
+       </column>
+      </widget>
+      <widget class="QWidget" name="verticalLayoutWidget">
+       <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="Live2DScene" name="live2DScene">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="0,1">
+          <item>
+           <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1">
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,0,1">
+              <item>
+               <widget class="QPushButton" name="pushButton">
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset theme="QIcon::ThemeIcon::ListAdd"/>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="pushButton_2">
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset theme="QIcon::ThemeIcon::ListRemove"/>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QListWidget" name="listWidget">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="MinimumExpanding">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>200</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="baseSize">
+               <size>
+                <width>100</width>
+                <height>0</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,1">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0,1,0">
+              <item>
+               <widget class="QPushButton" name="firstFrameBtn">
+                <property name="toolTip">
+                 <string>第一帧</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset theme="QIcon::ThemeIcon::GoPrevious"/>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="preFrameBtn">
+                <property name="toolTip">
+                 <string>上一帧</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset theme="QIcon::ThemeIcon::MediaSeekBackward"/>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="playBtn">
+                <property name="toolTip">
+                 <string>播放</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset theme="QIcon::ThemeIcon::MediaPlaybackStart"/>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="nextFrameBtn">
+                <property name="toolTip">
+                 <string>下一帧</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset theme="QIcon::ThemeIcon::MediaSeekForward"/>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="lastFrameBtn">
+                <property name="toolTip">
+                 <string>最后一帧</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset theme="QIcon::ThemeIcon::MediaSkipForward"/>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="currentTLabel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>00:00:12</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="curveTypeSelector">
+                <item>
+                 <property name="text">
+                  <string>直线</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>三次贝塞尔曲线</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>前键水平插值</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>后键水平插值</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_3">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_6">
+                <item>
+                 <widget class="QSlider" name="scaler">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Horizontal</enum>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="label">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>缩放</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="horizontalSpacer_2">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QScrollArea" name="scrollArea">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="widgetResizable">
+               <bool>true</bool>
+              </property>
+              <widget class="QWidget" name="scrollAreaWidgetContents">
+               <property name="geometry">
+                <rect>
+                 <x>0</x>
+                 <y>0</y>
+                 <width>412</width>
+                 <height>54</height>
+                </rect>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayout_2">
+                <item>
+                 <widget class="CurveEditor" name="curveEditor" native="true">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>33</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CurveEditor</class>
+   <extends>QWidget</extends>
+   <header>CurveEditor</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>Live2DScene</class>
+   <extends>QOpenGLWidget</extends>
+   <header>Live2DScene</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
