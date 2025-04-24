@@ -1,6 +1,11 @@
 # 实现读取动作并播放
 
 from abc import ABC, abstractmethod
+import json
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import live2d.v3 as live2d
+
 
 class Point:
 
@@ -46,14 +51,42 @@ class BezierSegment(Segment):
         self.p3 = p3
 
     def contains(self, t: float) -> bool:
-        return self.p0.t< t <= self.p3.t
+        return self.p0.t < t <= self.p3.t
     
     def interpolate(self, t):
-        tt = (t - self.p0.t) / (self.p3.t - self.p0.t)
+        tt = self.__solve_tt(t)
+        return self.__interpolate_value(tt)
+    
+    def __solve_tt(self, t) -> float:
+        # 二分法找到tt
+        tolerance = 0.0001
+        max_tt = 1
+        min_tt = 0
+
+        for i in range(20):
+            tt = (min_tt + max_tt) / 2
+            sot = self.__interpolate_t(tt)
+            if abs(sot - t) < tolerance:
+                return tt
+            elif sot > t:
+                max_tt = tt
+            else:
+                min_tt = tt
+        
+        return (min_tt + max_tt) / 2
+            
+
+    def __interpolate_value(self, tt) -> float:
         return (1 - tt) ** 3 * self.p0.value + \
                 3 * (1 - tt) ** 2 * tt * self.p1.value + \
                 3 * (1 - tt) * tt ** 2 * self.p2.value + \
                 tt ** 3 * self.p3.value
+    
+    def __interpolate_t(self, tt) -> float:
+        return (1 - tt) ** 3 * self.p0.t + \
+                3 * (1 - tt) ** 2 * tt * self.p1.t + \
+                3 * (1 - tt) * tt ** 2 * self.p2.t + \
+                tt ** 3 * self.p3.t
     
     def __repr__(self) -> str:
         return f"BezierSegment(p0={self.p0}, p1={self.p1}, p2={self.p2}, p3={self.p3})"
@@ -95,7 +128,6 @@ class Curve:
 
     def __init__(self, paramId: str):
         self.paramId = paramId
-        self.duration = 0
         self.segments = []
     
     def __repr__(self):
@@ -153,27 +185,49 @@ class Curve:
             last_point = segments[idx-2:idx]
 
             curve.segments.append(seg)
-
-        curve.duration = last_point[0]
         return curve
+    
+
+class Motion:
+
+    def __init__(self):
+        self.curves: list[Curve] = []
+        self.timeElapsed = 0
+        self.duration = 0
+        self.started = False
+
+    @staticmethod
+    def create(filePath: str) -> 'Motion':
+        motion = Motion()
+        with open(filePath) as f:
+            data = json.load(f)
+            curves = motion.curves
+            for curveData in data["Curves"]:
+                curve = Curve.create(curveData["Id"], curveData["Segments"])
+                curves.append(curve)
+        motion.duration = data['Meta']["Duration"]
+        return motion
+    
+    def update(self, delta: float, model: 'live2d.Model'):
+        self.timeElapsed += delta
+        for curve in self.curves:
+            v = curve.interpolate(self.timeElapsed)
+            if v is None:
+                continue
+            model.SetParameterValueById(curve.paramId, v)
+
+        if self.timeElapsed >= self.duration:
+            self.started = False
+    
+    def isFinished(self) -> bool:
+        return not self.started
+
+    def start(self):
+        self.started = True
+        self.timeElapsed = 0
+
 
 if __name__ == "__main__":
-    import json
-    motion = json.load(open("Mao/motions/"
-                            # "mtn_01.motion3.json"
-                            "special_01.motion3.json"
-                             ))
-    import matplotlib.pyplot as plt
-    curves: list[Curve] = []
-    for curve in motion["Curves"]:
-        curve = Curve.create(curve["Id"], curve["Segments"])
-        # print(curve)
-        
-        curves.append(curve)
-        # plt.title(curve.paramId)
-        # plt.plot([x[0] for x in points], [x[1] for x in points])
-        # plt.show()
-        # break
     
     import live2d.v3 as live2d
     import pygame
@@ -184,13 +238,16 @@ if __name__ == "__main__":
 
     pygame.display.set_mode((800, 600), pygame.DOUBLEBUF | pygame.OPENGL)
     live2d.glInit()
-    model = live2d.LAppModel()
+    model = live2d.Model()
     model.LoadModelJson("Mao/Mao.model3.json")
     model.Resize(800, 600)
 
+    model.CreateRenderer(2)
+
     started = False
     lastCt = time.time()
-    timeEplased = 0
+
+    motion = Motion.create("Mao/motions/special_01.motion3.json")
 
     while True:
         for event in pygame.event.get():
@@ -201,30 +258,29 @@ if __name__ == "__main__":
                 exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    started = True
-                    timeEplased = 0
+                    motion.start()
 
         ct = time.time()
         delta = ct - lastCt
         lastCt = ct
 
         live2d.clearBuffer()
-        model.Update()
-        if started:
+        
+        finished = motion.isFinished()
+        model.LoadParameters()
+        if not finished:
+            motion.update(delta, model)
+        model.SaveParameters()
 
-            timeEplased += delta
-            c = None
-            for c in curves:
-                v = c.interpolate(timeEplased)
-                if v is None:
-                    break
-
-                model.SetParameterValue(c.paramId, v)
-
-            if timeEplased >= c.duration:
-                started = False
-                timeEplased = 0
-
+        if finished:
+            model.UpdateBlink(delta)
+        
+        model.UpdateBreath(delta)
+        model.UpdateDrag(delta)
+        model.UpdateExpression(delta)
+        model.UpdatePhysics(delta)
+        model.UpdatePose(delta)
+        
         model.Draw()
 
         pygame.display.flip()
