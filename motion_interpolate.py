@@ -22,8 +22,21 @@ class Segment(ABC):
     @abstractmethod
     def interpolate(self, t: float) -> float: pass
 
+    def contains(self, t: float) -> bool:
+        return self.getStartPoint().t <= t <= self.getEndPoint().t
+
     @abstractmethod
-    def contains(self, t: float) -> bool: pass
+    def getEndPoint(self) -> Point: pass
+
+    @abstractmethod
+    def getStartPoint(self) -> Point: pass
+
+    @abstractmethod
+    def setStartPoint(self, p: Point): pass
+
+    @abstractmethod
+    def setEndPoint(self, p: Point): pass
+
 
 
 class LinearSegment(Segment):
@@ -31,9 +44,18 @@ class LinearSegment(Segment):
     def __init__(self, p0: Point, p1: Point):
         self.p0 = p0
         self.p1 = p1
+    
+    def getEndPoint(self) -> Point:
+        return self.p1
+    
+    def getStartPoint(self) -> Point:
+        return self.p0
+    
+    def setStartPoint(self, p: Point):
+        self.p0 = p
 
-    def contains(self, t: float) -> bool:
-        return self.p0.t < t <= self.p1.t
+    def setEndPoint(self, p: Point):
+        self.p1 = p
 
     def interpolate(self, t: float) -> float:
         return self.p0.value + (self.p1.value - self.p0.value) * (t - self.p0.t) / (self.p1.t - self.p0.t)
@@ -49,10 +71,19 @@ class BezierSegment(Segment):
         self.p1 = p1
         self.p2 = p2
         self.p3 = p3
-
-    def contains(self, t: float) -> bool:
-        return self.p0.t < t <= self.p3.t
     
+    def getEndPoint(self) -> Point:
+        return self.p3
+    
+    def getStartPoint(self) -> Point:
+        return self.p0
+    
+    def setStartPoint(self, p: Point):
+        self.p0 = p
+
+    def setEndPoint(self, p: Point):
+        self.p3 = p
+        
     def interpolate(self, t):
         tt = self.__solve_tt(t)
         return self.__interpolate_value(tt)
@@ -63,7 +94,7 @@ class BezierSegment(Segment):
         max_tt = 1
         min_tt = 0
 
-        for i in range(20):
+        for _ in range(20):
             tt = (min_tt + max_tt) / 2
             sot = self.__interpolate_t(tt)
             if abs(sot - t) < tolerance:
@@ -98,9 +129,18 @@ class SteppedSegment(Segment):
         self.p0 = p0
         self.p1 = p1
     
-    def contains(self, t):
-        return self.p0.t < t <= self.p1.t
+    def getEndPoint(self) -> Point:
+        return self.p1
     
+    def getStartPoint(self) -> Point:
+        return self.p0
+    
+    def setStartPoint(self, p: Point):
+        self.p0 = p
+
+    def setEndPoint(self, p: Point):
+        self.p1 = p
+
     def interpolate(self, t):
         return self.p0.value if t < self.p0.t else self.p1.value
     
@@ -114,9 +154,18 @@ class InverseSteppedSegment(Segment):
         self.p0 = p0
         self.p1 = p1
     
-    def contains(self, t):
-        return self.p0.t < t <= self.p1.t
+    def getEndPoint(self) -> Point:
+        return self.p1
     
+    def getStartPoint(self) -> Point:
+        return self.p0
+    
+    def setStartPoint(self, p: Point):
+        self.p0 = p
+
+    def setEndPoint(self, p: Point):
+        self.p1 = p
+
     def interpolate(self, t):
         return self.p1.value
     

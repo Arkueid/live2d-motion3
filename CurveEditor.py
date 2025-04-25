@@ -1,12 +1,20 @@
-from motion_interpolate import BezierSegment, Point
+from motion_interpolate import Segment, LinearSegment, BezierSegment, SteppedSegment, InverseSteppedSegment, Point
 import sys
 
 from PySide6.QtWidgets import QWidget, QToolTip
-from PySide6.QtCore import Qt, QPointF, QPoint
+from PySide6.QtCore import Qt, QPointF, QPoint, Signal
 from PySide6.QtGui import QPainter, QPen, QMouseEvent, QPainterPath, QColor
 
 
 class CurveEditor(QWidget):
+    SEG_TYPE_LINEAR = 0
+    SEG_TYPE_BEZIER = 1
+    SEG_TYPE_STEPPED = 2
+    SEG_TYPE_INVERSE_STEPPED = 3
+
+    segTypeChanged = Signal(int)
+
+    curveValueChanged = Signal(float, float, bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -17,27 +25,25 @@ class CurveEditor(QWidget):
         # 默认最大比例，屏幕50宽 => 00:00:01 帧
         self.scale = 30
         self.fps = 30
-        self.duration = 120 # 默认总帧数120
+        self.duration = 60 # 默认总帧数120
 
         self.margin = 3
         self.origin = 50, 25
         self.chartSize = [self.duration * self.scale, 250]
 
-        self.segments = []
+        self.segments: list[Segment] = []
 
         self.points: list[Point] = []
 
         self.selectedPoint = None
 
-        self.clickedX = 0
+        self.clickedX = self.origin[0]
         self.clickedY = 0
         self.moved = False
 
-        self.selectedSegment: None | BezierSegment = None
+        self.selectedSegment: None | Segment = None
 
         self.selectedControlPoint: None | Point = None
-
-        self.currentT = 0
 
         self.maxValue = 30
         self.minValue = -30
@@ -49,6 +55,136 @@ class CurveEditor(QWidget):
         self.setMouseTracking(True)
 
         self.setFixedWidth(self.chartSize[0] + self.origin[0] * 2)
+
+        self.defaultSegType = CurveEditor.SEG_TYPE_BEZIER
+
+        self.noInterpolate = False
+
+    def setNoInterpolate(self, noInterpolate: bool):
+        self.noInterpolate = noInterpolate
+
+    def setFps(self, fps: int):
+        old_fps = self.fps
+        self.fps = fps
+        duration = int(self.duration * old_fps / fps)
+        self.setDuration(duration)
+
+    def isEndReached(self):
+        return self._alignX(self.clickedX) >= self.origin[0] + self.chartSize[0]
+
+    def moveToLastFrame(self):
+        self.clickedX = self.origin[0] + self.chartSize[0]
+
+        self._changeValue()
+
+        self.update()
+
+    def moveToFirstFrame(self):
+        self.clickedX = self.origin[0]
+
+        self._changeValue()
+
+        self.update()
+
+    def moveToPrevFrame(self):
+        if self.clickedX - self.scale < self.origin[0]:
+            return
+        
+        self.clickedX = self._alignX(self.clickedX) - self.scale
+        self._changeValue()
+
+        self.update()
+        return
+
+    def moveToNextFrame(self):
+        if self.clickedX + self.scale > self.origin[0] + self.chartSize[0]:
+            return
+        
+        self.clickedX = self._alignX(self.clickedX) + self.scale
+        self._changeValue()
+
+        self.update()
+
+    def setTarget(self, targetId: str, segments: list[Segment], maxValue: float, minValue: float):
+        self.targetId = targetId
+        self.segments = segments
+
+        self.points = [seg.getStartPoint() for seg in segments] + [seg.getEndPoint() for seg in segments]
+
+        self.maxValue = maxValue
+        self.minValue = minValue
+
+        self.selectedControlPoint = None
+        self.selectedSegment = None
+        self.selectedPoint = None
+
+        self.update()
+
+    def _alignX(self, x):
+        return round((x - self.origin[0]) / self.scale, 0) * self.scale + self.origin[0]
+    
+    def _y2value(self, y):
+        return (y - self.origin[1]) / self.chartSize[1] * (self.minValue - self.maxValue) + self.maxValue
+
+    def getT(self):
+        return self._alignX(self.clickedX)
+    
+    def valueOfY(self, y):
+        return self._y2value(y)
+
+    def _changeValue(self):
+        if self.clickedX < self.origin[0] or self.clickedX > self.origin[0] + self.chartSize[0]:
+            return
+        
+        x = self._alignX(self.clickedX)
+        num_frames = (x - self.origin[0]) / self.scale
+        if not self.noInterpolate:
+            for seg in self.segments:
+                if seg.contains(x):
+                    y = seg.interpolate(x)
+                    value = self._y2value(y)
+                    self.curveValueChanged.emit(num_frames, value, True)
+                    break
+            else:
+                self.curveValueChanged.emit(num_frames, 0, False)
+        else:
+            self.curveValueChanged.emit(num_frames, 0, False)
+
+    def setDuration(self, duration: int):
+        self.duration = duration
+        self.chartSize = [self.duration * self.scale, 250]
+        self.setFixedWidth(self.chartSize[0] + self.origin[0] * 2)
+        self.update()
+    
+    def setSegmentType(self, t: int):
+        if t == self.defaultSegType:
+            return
+        
+        self.defaultSegType = t
+
+        if self.selectedSegment is None:
+            return
+        
+        sp = self.selectedSegment.getStartPoint()
+        ep = self.selectedSegment.getEndPoint()
+        if t == CurveEditor.SEG_TYPE_BEZIER:
+            idx = self.segments.index(self.selectedSegment)
+            self.selectedSegment = BezierSegment(sp, Point(sp.t + (ep.t - sp.t) * 0.33, sp.value), Point(sp.t + (ep.t - sp.t) * 0.67, ep.value), ep)
+            self.segments[idx] = self.selectedSegment
+        elif t == CurveEditor.SEG_TYPE_LINEAR:
+            idx = self.segments.index(self.selectedSegment)
+            self.selectedSegment = LinearSegment(sp, ep)
+            self.segments[idx] = self.selectedSegment
+        elif t == CurveEditor.SEG_TYPE_STEPPED:
+            idx = self.segments.index(self.selectedSegment)
+            self.selectedSegment = SteppedSegment(sp, ep)
+            self.segments[idx] = self.selectedSegment
+        elif t == CurveEditor.SEG_TYPE_INVERSE_STEPPED:
+            idx = self.segments.index(self.selectedSegment)
+            self.selectedSegment = InverseSteppedSegment(sp, ep)
+            self.segments[idx] = self.selectedSegment
+        
+        self.update()
 
     def setScale(self, scale: int):
         last_scale = self.scale
@@ -88,7 +224,7 @@ class CurveEditor(QWidget):
         if self.cursorX < self.origin[0] or self.cursorX > self.origin[0] + self.chartSize[0]:
             return
         
-        x = round((self.cursorX - self.origin[0]) / self.scale, 0) * self.scale + self.origin[0]
+        x = self._alignX(self.cursorX)
         
         painter.setPen(Qt.GlobalColor.cyan)
         pen = painter.pen()
@@ -100,7 +236,7 @@ class CurveEditor(QWidget):
         if self.clickedX < self.origin[0] or self.clickedX > self.origin[0] + self.chartSize[0]:
             return
         
-        x = round((self.clickedX - self.origin[0]) / self.scale, 0) * self.scale + self.origin[0]
+        x = self._alignX(self.clickedX)
         
         painter.setPen(Qt.GlobalColor.blue)
         pen = painter.pen()
@@ -149,11 +285,24 @@ class CurveEditor(QWidget):
         # print(self.segments)
         for seg in self.segments:
             points = []
-            for i in range(31):
-                t = i / 30
-                if isinstance(seg, BezierSegment):
+            if isinstance(seg, BezierSegment):
+                for i in range(31):
+                    t = i / 30
                     points.append(QPointF(seg.p0.t + t * (seg.p3.t - seg.p0.t), seg.interpolate(seg.p0.t + t * (seg.p3.t - seg.p0.t))))
-            painter.setPen(Qt.GlobalColor.black)
+            elif isinstance(seg, LinearSegment):
+                points.append(QPointF(seg.p0.t, seg.p0.value))
+                points.append(QPointF(seg.p1.t, seg.p1.value))
+            elif isinstance(seg, SteppedSegment):
+                points.append(QPointF(seg.p0.t, seg.p0.value))
+                points.append(QPointF(seg.p1.t, seg.p0.value))
+                points.append(QPointF(seg.p1.t, seg.p1.value))
+                points.append(QPointF(seg.p1.t, seg.p0.value))
+            elif isinstance(seg, InverseSteppedSegment):
+                points.append(QPointF(seg.p0.t, seg.p0.value))
+                points.append(QPointF(seg.p0.t, seg.p1.value))
+                points.append(QPointF(seg.p1.t, seg.p1.value))
+                points.append(QPointF(seg.p0.t, seg.p1.value))
+            painter.setPen(Qt.GlobalColor.black if seg != self.selectedSegment else Qt.GlobalColor.red)
             pen = painter.pen()
             pen.setWidth(2)
             painter.setPen(pen)
@@ -175,11 +324,9 @@ class CurveEditor(QWidget):
             y = start_y + i * self.chartSize[1] / 6
             painter.setPen(Qt.GlobalColor.lightGray)
             painter.drawLine(self.origin[0] - 10, y, self.origin[0] + self.chartSize[0], y)
-            value = (y - self.origin[1]) / self.chartSize[1] * (self.maxValue - self.minValue) + self.minValue
+            value = self._y2value(y)
             painter.setPen(Qt.GlobalColor.black)
-            painter.drawText(10, y - 5, "%.2f" % -value)
-
-            
+            painter.drawText(10, y - 5, "%.2f" % value)
 
     def _draw_control_points(self, painter: QPainter):
         if self.selectedSegment is None:
@@ -212,18 +359,33 @@ class CurveEditor(QWidget):
         
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
-            self.clickedX, self.clickedY = event.pos().x(), event.pos().y()
-            self.selectedPoint = self._get_selected_point(self.clickedX, self.clickedY)
+            x, y = event.pos().x(), event.pos().y()
+            self.selectedPoint = self._get_selected_point(x, y)
             if self.selectedPoint is not None:
                 for seg in self.segments:
-                    if isinstance(seg, BezierSegment):
-                        if seg.p0 == self.selectedPoint:
-                            self.selectedSegment = seg
-                            break
-            
-            self.selectedControlPoint = self._get_selected_control_point(self.clickedX, self.clickedY)
+                    # 只能通过起始点选择
+                    if seg.getStartPoint() == self.selectedPoint:
+                        self.selectedSegment = seg
+                        break
+
+            if self.selectedSegment is not None:
+                if isinstance(self.selectedSegment, BezierSegment):
+                    self.defaultSegType = self.SEG_TYPE_BEZIER
+                    self.selectedControlPoint = self._get_selected_control_point(x, y)
+                elif isinstance(self.selectedSegment, LinearSegment):
+                    self.defaultSegType = self.SEG_TYPE_LINEAR
+                    self.selectedControlPoint = None
+                elif isinstance(self.selectedSegment, SteppedSegment):
+                    self.defaultSegType = self.SEG_TYPE_STEPPED
+                    self.selectedControlPoint = None
+                elif isinstance(self.selectedSegment, InverseSteppedSegment):
+                    self.defaultSegType = self.SEG_TYPE_INVERSE_STEPPED
+                    self.selectedControlPoint = None
+                self.segTypeChanged.emit(self.defaultSegType)
             if self.selectedPoint is None and self.selectedControlPoint is None:
                 self.selectedSegment = None
+                self.clickedX, self.clickedY = x, y
+                self._changeValue()
 
             self.update()
     
@@ -232,8 +394,8 @@ class CurveEditor(QWidget):
         secs = num_frames // self.fps
         minutes = (num_frames - secs * self.fps) // self.fps * self.fps
         frames = num_frames % self.fps 
-        value = (y - self.origin[1]) / self.chartSize[1] * (self.maxValue - self.minValue) + self.minValue
-        QToolTip.showText(point, "%s\n%02d:%02d:%02d, %.2f" % (self.targetId, minutes, secs, frames, -value))
+        value = self._y2value(y)
+        QToolTip.showText(point, "%s\n%02d:%02d:%02d, %.2f" % (self.targetId, minutes, secs, frames, value))
 
     def mouseMoveEvent(self, event: QMouseEvent):
         x, y = event.pos().x(), event.pos().y()
@@ -258,7 +420,7 @@ class CurveEditor(QWidget):
             elif self.selectedPoint is not None:
                 selected_index = self.points.index(self.selectedPoint)
 
-                x = round((x - self.origin[0]) / self.scale, 0) * self.scale + self.origin[0]
+                x = self._alignX(x)
 
                 if selected_index > 0 and self.points[selected_index - 1].t >= x:
                     return
@@ -295,8 +457,12 @@ class CurveEditor(QWidget):
             elif (self.clickedX - x) ** 2 + (self.clickedY - y) ** 2 > 4:
                 self.moved = True
                 self.show_coordinate(event.globalPosition().toPoint(), x, y)
+                self.clickedX, self.clickedY = event.pos().x(), event.pos().y()
+                self._changeValue()
             else:
                 self.show_coordinate(event.globalPosition().toPoint(), x, y)
+                self.clickedX, self.clickedY = event.pos().x(), event.pos().y()
+                self._changeValue()
 
         self.update()
 
@@ -310,7 +476,7 @@ class CurveEditor(QWidget):
             if self.selectedPoint is None and self.selectedControlPoint is None:
                 x, y = event.pos().x(), event.pos().y()
 
-                x = round((x - self.origin[0]) / self.scale, 0) * self.scale + self.origin[0]
+                x = self._alignX(x)
 
                 if len(self.points) > 0 and self.points[-1].t >= x:
                     return
@@ -346,6 +512,9 @@ class CurveEditor(QWidget):
         if self.selectedSegment is None:
             return None
         
+        if not isinstance(self.selectedSegment, BezierSegment):
+            return None
+        
         if (self.selectedSegment.p1.t - x) ** 2 + (self.selectedSegment.p1.value - y) ** 2 < 25:
             return self.selectedSegment.p1
         
@@ -355,11 +524,18 @@ class CurveEditor(QWidget):
     def _add_point(self, p: Point):
         self.points.append(p)
         if len(self.points) > 1:
-            p0 = self.points[-2]
-            p3 = self.points[-1]
-            p1 = Point(p0.t + (p3.t - p0.t) / 3, p0.value)
-            p2 = Point(p0.t + (p3.t - p1.t) * 2 / 3, p3.value)
-            self.segments.append(BezierSegment(p0, p1, p2, p3))
+            sp = self.points[-2]
+            ep = self.points[-1]
+            if self.defaultSegType == self.SEG_TYPE_BEZIER:
+                p1 = Point(sp.t + (ep.t - sp.t) / 3, sp.value)
+                p2 = Point(sp.t + (ep.t - sp.t) * 2 / 3, ep.value)
+                self.segments.append(BezierSegment(sp, p1, p2, ep))
+            elif self.defaultSegType == self.SEG_TYPE_LINEAR:
+                self.segments.append(LinearSegment(sp, ep))
+            elif self.defaultSegType == self.SEG_TYPE_STEPPED:
+                self.segments.append(SteppedSegment(sp, ep))
+            elif self.defaultSegType == self.SEG_TYPE_INVERSE_STEPPED:
+                self.segments.append(InverseSteppedSegment(sp, ep))
 
     def _remove_point(self, p: Point):
         self.points.remove(p)
@@ -376,17 +552,18 @@ class CurveEditor(QWidget):
             seg = self.segments[idx]
             next_seg = self.segments[idx + 1] if idx < len(self.segments) - 1 else None
 
-            if isinstance(seg, BezierSegment):
-                if seg.p0 == p: # 第一个段
+            sp = seg.getStartPoint()
+            ep = seg.getEndPoint()
+            if sp == p: # 第一个段
+                self.segments.remove(seg)
+                break
+            elif ep == p: # 其他段
+                if next_seg:
+                    seg.setEndPoint(next_seg.p3)
+                    self.segments.remove(next_seg)
+                else:
                     self.segments.remove(seg)
-                    break
-                elif seg.p3 == p: # 其他段
-                    if next_seg:
-                        seg.p3 = next_seg.p3
-                        self.segments.remove(next_seg)
-                    else:
-                        self.segments.remove(seg)
-                    break
+                break
             idx += 1
         
 

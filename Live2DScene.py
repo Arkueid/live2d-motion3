@@ -1,6 +1,5 @@
 import live2d.v3 as live2d
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
-from PySide6.QtGui import QOpenGLFunctions
 from PySide6.QtCore import Signal
 import time
 
