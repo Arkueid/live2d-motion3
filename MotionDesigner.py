@@ -24,7 +24,7 @@ class MotionDesigner(QWidget):
 
         self.ui.live2DScene.initialized.connect(self._on_scene_initialized)
 
-        self.ui.scaler.setRange(25, 50)
+        self.ui.scaler.setRange(10, 50)
         self.ui.scaler.setValue(30)
         self.ui.scaler.valueChanged.connect(self.ui.curveEditor.setScale)
 
@@ -160,7 +160,10 @@ class MotionDesigner(QWidget):
             index = item.data(Qt.ItemDataRole.UserRole + 1)
             v = curve.interpolate(t)
             if v is not None:
-                v = self.ui.curveEditor.valueOfY(v)
+                pct = self.ui.curveEditor.percentOfY(v)
+                maxValue = self.model.GetParameterMaximumValue(index)
+                minValue = self.model.GetParameterMinimumValue(index)
+                v = pct * (maxValue - minValue) + minValue
                 self.ui.live2DScene.changedParamValues.append((index, v))
                 # print("update param %s to %.2f" % (curve.paramId, v))
 

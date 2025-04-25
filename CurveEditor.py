@@ -64,10 +64,8 @@ class CurveEditor(QWidget):
         self.noInterpolate = noInterpolate
 
     def setFps(self, fps: int):
-        old_fps = self.fps
         self.fps = fps
-        duration = int(self.duration * old_fps / fps)
-        self.setDuration(duration)
+        self.setDuration(self.duration)
 
     def isEndReached(self):
         return self._alignX(self.clickedX) >= self.origin[0] + self.chartSize[0]
@@ -129,8 +127,8 @@ class CurveEditor(QWidget):
     def getT(self):
         return self._alignX(self.clickedX)
     
-    def valueOfY(self, y):
-        return self._y2value(y)
+    def percentOfY(self, y):
+        return (y - self.origin[1]) / self.chartSize[1]
 
     def _changeValue(self):
         if self.clickedX < self.origin[0] or self.clickedX > self.origin[0] + self.chartSize[0]:
@@ -384,7 +382,8 @@ class CurveEditor(QWidget):
                 self.segTypeChanged.emit(self.defaultSegType)
             if self.selectedPoint is None and self.selectedControlPoint is None:
                 self.selectedSegment = None
-                self.clickedX, self.clickedY = x, y
+                if x <= self.origin[0] + self.chartSize[0] and x >= self.origin[0]:
+                    self.clickedX, self.clickedY = max(x, self.origin[0]), y
                 self._changeValue()
 
             self.update()
@@ -457,12 +456,16 @@ class CurveEditor(QWidget):
             elif (self.clickedX - x) ** 2 + (self.clickedY - y) ** 2 > 4:
                 self.moved = True
                 self.show_coordinate(event.globalPosition().toPoint(), x, y)
-                self.clickedX, self.clickedY = event.pos().x(), event.pos().y()
-                self._changeValue()
+                x = event.pos().x()
+                if x <= self.origin[0] + self.chartSize[0] and x >= self.origin[0]:
+                    self.clickedX, self.clickedY = max(x, self.origin[0]), event.pos().y()
+                    self._changeValue()
             else:
                 self.show_coordinate(event.globalPosition().toPoint(), x, y)
-                self.clickedX, self.clickedY = event.pos().x(), event.pos().y()
-                self._changeValue()
+                x = event.pos().x()
+                if x <= self.origin[0] + self.chartSize[0] and x >= self.origin[0]:
+                    self.clickedX, self.clickedY = max(x, self.origin[0]), event.pos().y()
+                    self._changeValue()
 
         self.update()
 
