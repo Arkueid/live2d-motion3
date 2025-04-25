@@ -9,13 +9,20 @@ class Live2DScene(QOpenGLWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.model = live2d.Model()
-        self.model.LoadModelJson("Mao/Mao.model3.json")
+        self.model_path = None
         self.lastCt = -1
-
         self.changedParamValues = []
+
+    def setModelPath(self, model_path):
+        self.model_path = model_path
     
     def initializeGL(self):
         live2d.glInit()
+        if self.model_path:
+            self.model.LoadModelJson(self.model_path)
+        else:
+            self.model.LoadModelJson("Mao/Mao.model3.json")
+            
         self.model.CreateRenderer(2)
 
         self.lastCt = time.time()

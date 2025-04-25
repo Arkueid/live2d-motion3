@@ -59,6 +59,9 @@ class CurveEditor(QWidget):
         self.defaultSegType = CurveEditor.SEG_TYPE_BEZIER
 
         self.noInterpolate = False
+    
+    def getNumFrames(self, x):
+        return (x - self.origin[0]) / self.scale
 
     def setNoInterpolate(self, noInterpolate: bool):
         self.noInterpolate = noInterpolate

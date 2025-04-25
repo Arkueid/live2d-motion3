@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QTableWidgetItem, QSlider, QCheckBox, QListWidgetItem, QHeaderView
+from PySide6.QtWidgets import QWidget, QTableWidgetItem, QSlider, QCheckBox, QListWidgetItem, QHeaderView, QFileDialog
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon
 
@@ -6,14 +6,19 @@ from ui_MotionDesigner import Ui_MotionDesigner
 import os
 import json
 import live2d.v3 as live2d
-from motion_interpolate import Curve
+from motion_interpolate import Curve, get_segment_type
+
 
 class MotionDesigner(QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, model_path=None, parent=None):
         super().__init__(parent)
         self.ui = Ui_MotionDesigner()
         self.ui.setupUi(self)
+
+        self.model_path = model_path
+
+        self.ui.live2DScene.setModelPath(model_path)
 
         self.model: None | live2d.Model = None
         self.paramIds = []
@@ -185,6 +190,58 @@ class MotionDesigner(QWidget):
         else:
             self.ui.curveEditor.moveToNextFrame()
             self.playTimer.start()
+
+    def export_motion(self, save_path):
+        filePath, _ = QFileDialog.getSaveFileName(self, "导出动画", save_path, "Live2D 动画 (*.motion3.json)")
+        if filePath == "":
+            return
+        
+        curve_count = self.ui.motionParamList.count()
+        fps = self.ui.curveEditor.fps
+        duration = self.ui.curveEditor.duration / fps
+        segment_count = 0
+        point_count = 0
+        curves = []
+        map_t = lambda x: self.ui.curveEditor.getNumFrames(x) / fps
+        
+        for i in range(curve_count):
+            c = self.ui.motionParamList.item(i).data(Qt.ItemDataRole.UserRole)
+            sc = len(c.segments)
+            if sc == 0:
+                continue
+            segment_count += sc
+            point_count += 1
+            for s in c.segments:
+                if get_segment_type(s) == 1:
+                    point_count += 3
+                else:
+                    point_count += 1
+            idx = self.ui.motionParamList.item(i).data(Qt.ItemDataRole.UserRole + 1)
+            minValue = self.model.GetParameterMinimumValue(idx)
+            maxValue = self.model.GetParameterMaximumValue(idx)
+            map_value = lambda y, maxValue=maxValue, minValue=minValue: self.ui.curveEditor.percentOfY(y) * (maxValue - minValue) + minValue
+            curves.append(c.to_json(map_t, map_value))
+
+        data = {
+            "Version": 3,
+            "Meta": {
+                "Duration": duration,
+                "Fps": fps,
+                "FadeInTime": 0.5,
+                "FadeOutTime": 1.0,
+                "Loop": True,
+                "AreBeziersRestricted": True,
+                "CurveCount": curve_count,
+                "TotalSegmentCount": segment_count,
+                "TotalPointCount": point_count,
+                "UserDataCount": 0,
+                "TotalUserDataSize": 0
+            },
+            "Curves": curves
+        }
+
+        with open(filePath, "w", encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
 
 
 if __name__ == '__main__':

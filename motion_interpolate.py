@@ -171,13 +171,26 @@ class InverseSteppedSegment(Segment):
     
     def __repr__(self):
         return f"InverseSteppedSegment(p0={self.p0}, p1={self.p1})"
-    
+
+
+def get_segment_type(t: Segment) -> int:
+    if isinstance(t, LinearSegment):
+        return 0
+    elif isinstance(t, BezierSegment):
+        return 1
+    elif isinstance(t, SteppedSegment):
+        return 2
+    elif isinstance(t, InverseSteppedSegment):
+        return 3
+    else:
+        raise Exception("Invalid segment type")
+
 
 class Curve:
 
     def __init__(self, paramId: str):
         self.paramId = paramId
-        self.segments = []
+        self.segments: list[Segment] = []
     
     def __repr__(self):
         return f"Curve(paramId={self.paramId}, duration={self.duration}, segments={self.segments})"
@@ -188,6 +201,35 @@ class Curve:
                 return segment.interpolate(t)
             
         return None
+    
+    def to_json(self, map_t = lambda x: x, map_value = lambda x: x):
+        if not self.segments:
+            return None
+
+        data = {
+            "Target": "Parameter",
+            "Id": self.paramId,
+            "Segments": []
+        }
+        for i, seg in enumerate(self.segments):
+            if i == 0:
+                data["Segments"].extend([map_t(seg.getStartPoint().t), map_value(seg.getEndPoint().value)])
+            t = get_segment_type(seg)
+            if t == 1:
+                data["Segments"].extend([t, 
+                                         map_t(seg.p1.t), 
+                                         map_value(seg.p1.value),
+                                         map_t(seg.p2.t),
+                                         map_value(seg.p2.value),
+                                         map_t(seg.p3.t),
+                                         map_value(seg.p3.value),
+                                         ])
+            else:
+                data["Segments"].extend([t, 
+                                         map_t(seg.p1.t), 
+                                         map_value(seg.p1.value),
+                                         ])
+        return data
 
     @staticmethod
     def create(paramId: str, segments: list[float]) -> 'Curve':
