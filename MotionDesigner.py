@@ -196,7 +196,7 @@ class MotionDesigner(QWidget):
         if filePath == "":
             return
         
-        curve_count = self.ui.motionParamList.count()
+        curve_count = 0
         fps = self.ui.curveEditor.fps
         duration = self.ui.curveEditor.duration / fps
         segment_count = 0
@@ -209,6 +209,7 @@ class MotionDesigner(QWidget):
             sc = len(c.segments)
             if sc == 0:
                 continue
+            curve_count += 1
             segment_count += sc
             point_count += 1
             for s in c.segments:
