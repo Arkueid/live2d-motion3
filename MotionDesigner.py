@@ -204,7 +204,7 @@ class MotionDesigner(QWidget):
         curves = []
         map_t = lambda x: self.ui.curveEditor.getNumFrames(x) / fps
         
-        for i in range(curve_count):
+        for i in range(self.ui.motionParamList.count()):
             c = self.ui.motionParamList.item(i).data(Qt.ItemDataRole.UserRole)
             sc = len(c.segments)
             if sc == 0:
