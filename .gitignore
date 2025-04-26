@@ -1,3 +1,9 @@
 .venv
 __pycache__
 *.pyc
+*.spec
+
+dist
+build
+
+*.motion3.json

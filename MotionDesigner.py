@@ -16,6 +16,9 @@ class MotionDesigner(QWidget):
         self.ui = Ui_MotionDesigner()
         self.ui.setupUi(self)
 
+        self.ui.splitter.setStretchFactor(0, 1)
+        # self.ui.splitter.setStretchFactor(1, 1)
+
         self.model_path = model_path
 
         self.ui.live2DScene.setModelPath(model_path)
@@ -29,7 +32,7 @@ class MotionDesigner(QWidget):
 
         self.ui.live2DScene.initialized.connect(self._on_scene_initialized)
 
-        self.ui.scaler.setRange(10, 50)
+        self.ui.scaler.setRange(1, 50)
         self.ui.scaler.setValue(30)
         self.ui.scaler.valueChanged.connect(self.ui.curveEditor.setScale)
 
@@ -72,6 +75,7 @@ class MotionDesigner(QWidget):
     def _on_scene_initialized(self, model: live2d.Model):
         self.model = model
         self.paramIds = self.model.GetParameterIds()
+        self.ui.live2DScene.paramValues = [self.model.GetParameterDefaultValue(i) for i in range(len(self.paramIds))]
         self.paramCurves = [Curve.create(p, []) for p in self.paramIds]
         self._load_cdi()
         self._init_param_table()
@@ -109,7 +113,7 @@ class MotionDesigner(QWidget):
         min_value = self.model.GetParameterMinimumValue(i)
         max_value = self.model.GetParameterMaximumValue(i)
         value = min_value + (max_value - min_value) * value / 100.0
-        self.ui.live2DScene.changedParamValues.append((i, value))
+        self.ui.live2DScene.paramValues[i] = value
 
         self.ui.paramTable.item(i, 3).setText("%.2f" % value)
 
@@ -148,7 +152,7 @@ class MotionDesigner(QWidget):
             self._update_all_used_params()
         else:
             if self.currentParamIndex != -1 and valid:
-                self.ui.live2DScene.changedParamValues.append((self.currentParamIndex, value))
+                self.ui.live2DScene.paramValues[self.currentParamIndex] = value
 
         fps = self.ui.curveEditor.fps
         secs = num_frames // fps
@@ -169,7 +173,7 @@ class MotionDesigner(QWidget):
                 maxValue = self.model.GetParameterMaximumValue(index)
                 minValue = self.model.GetParameterMinimumValue(index)
                 v = pct * (maxValue - minValue) + minValue
-                self.ui.live2DScene.changedParamValues.append((index, v))
+                self.ui.live2DScene.paramValues[index] = v
                 # print("update param %s to %.2f" % (curve.paramId, v))
 
     def _on_play_btn_clicked(self):

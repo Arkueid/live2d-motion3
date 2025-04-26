@@ -11,7 +11,7 @@ class Live2DScene(QOpenGLWidget):
         self.model = live2d.Model()
         self.model_path = None
         self.lastCt = -1
-        self.changedParamValues = []
+        self.paramValues = []
 
     def setModelPath(self, model_path):
         self.model_path = model_path
@@ -39,14 +39,18 @@ class Live2DScene(QOpenGLWidget):
         self.lastCt = ct
 
         self.model.LoadParameters(delta)
-        for i, v in self.changedParamValues:
+        for i, v in enumerate(self.paramValues):
             self.model.SetParameterValue(i, v)
         
-        self.changedParamValues.clear()
         self.model.SaveParameters()
         self.model.UpdateDrag(delta)
         self.model.UpdateExpression(delta)
         self.model.UpdatePhysics(delta)
+
+        # 防止参数被物理计算重置
+        for i, v in enumerate(self.paramValues):
+            self.model.SetParameterValue(i, v)
+
         self.model.UpdatePose(delta)
         self.model.Draw()
     

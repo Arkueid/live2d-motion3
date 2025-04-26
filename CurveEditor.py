@@ -310,15 +310,17 @@ class CurveEditor(QWidget):
             painter.drawPolyline(points)
 
     def _draw_grid(self, painter: QPainter):
+        last_i = 0
         for i in range(self.duration):
             x = self.origin[0] + i * self.scale
             painter.setPen(Qt.GlobalColor.lightGray)
             painter.drawLine(x, self.origin[1] - 5, x, self.origin[1] + self.chartSize[1])
             secs = i // self.fps
             frames = i % self.fps 
-            if i % 2 == 0:
+            if (i - last_i) * self.scale >= 50:
                 painter.setPen(Qt.GlobalColor.black)
                 painter.drawText(x, self.origin[1] - 5, "%d:%02d" % (secs, frames))
+                last_i = i
         
         start_y = self.origin[1]
         for i in range(7):
@@ -565,7 +567,7 @@ class CurveEditor(QWidget):
                 break
             elif ep == p: # 其他段
                 if next_seg:
-                    seg.setEndPoint(next_seg.p3)
+                    seg.setEndPoint(next_seg.getEndPoint())
                     self.segments.remove(next_seg)
                 else:
                     self.segments.remove(seg)
